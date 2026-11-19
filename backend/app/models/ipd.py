@@ -1,0 +1,142 @@
+from datetime import date, datetime
+
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.core.clock import now as clock_now
+from app.db.session import Base
+
+
+class Ward(Base):
+    __tablename__ = "wards"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id"))
+    name: Mapped[str] = mapped_column(String(80))
+    category: Mapped[str] = mapped_column(String(20), default="general")  # general icu ccu vip private
+    floor: Mapped[str] = mapped_column(String(20), default="")
+    # False = deleted (kept only because old admissions point at it).
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class Bed(Base):
+    __tablename__ = "beds"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ward_id: Mapped[int] = mapped_column(ForeignKey("wards.id"), index=True)
+    code: Mapped[str] = mapped_column(String(20))
+    status: Mapped[str] = mapped_column(String(20), default="available")  # available occupied maintenance removed
+    daily_rate: Mapped[float] = mapped_column(Float, default=0)
+    hourly_rate: Mapped[float] = mapped_column(Float, default=0)
+    package_rate: Mapped[float] = mapped_column(Float, default=0)
+
+    ward = relationship("Ward")
+
+
+class Admission(Base):
+    __tablename__ = "admissions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id"), index=True)
+    bed_id: Mapped[int | None] = mapped_column(ForeignKey("beds.id"), nullable=True, index=True)
+    # Ward Reception asked for; Cashier assigns the actual bed (status pending_bed until then).
+    requested_ward_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    doctor_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="admitted", index=True)  # admitted transferred discharged
+    admitted_at: Mapped[datetime] = mapped_column(DateTime, default=clock_now)
+    discharged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    deposit: Mapped[float] = mapped_column(Float, default=0)
+    billing_mode: Mapped[str] = mapped_column(String(20), default="daily")  # daily hourly package
+    # Home stay: an IPD patient who sleeps at home and comes in day by day — no
+    # bed, no room charge, but deposits / items / discharge as any IPD patient.
+    home_stay: Mapped[bool] = mapped_column(Boolean, default=False)
+    diagnosis: Mapped[str] = mapped_column(Text, default="")
+    discharge_summary: Mapped[str] = mapped_column(Text, default="")
+    discharge_type: Mapped[str] = mapped_column(String(20), default="")  # routine lama dama transfer_out death
+    last_room_charge_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Step 1 of discharge: doctor / IPD nurse says the patient may go (room charges stop here).
+    # Step 2: Cashier settles the bill and does the actual discharge (bed released).
+    discharge_approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    discharge_approved_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    patient = relationship("Patient")
+    bed = relationship("Bed")
+    doctor = relationship("User")
+
+
+class BedTransferLog(Base):
+    """One row per bed assignment an admission has ever had — the initial
+    admit and every subsequent transfer — so "which bed was this patient in,
+    and when" survives Admission.bed_id simply being overwritten on transfer.
+    Lets a disputed room charge or an ICU-utilization report be answered
+    after the fact instead of only reflecting the current bed."""
+    __tablename__ = "bed_transfer_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    admission_id: Mapped[int] = mapped_column(ForeignKey("admissions.id"), index=True)
+    from_bed_id: Mapped[int | None] = mapped_column(ForeignKey("beds.id"), nullable=True)
+    to_bed_id: Mapped[int] = mapped_column(ForeignKey("beds.id"))
+    from_ward_id: Mapped[int | None] = mapped_column(ForeignKey("wards.id"), nullable=True)
+    to_ward_id: Mapped[int] = mapped_column(ForeignKey("wards.id"))
+    reason: Mapped[str] = mapped_column(String(200), default="")
+    transferred_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    transferred_at: Mapped[datetime] = mapped_column(DateTime, default=clock_now)
+
+
+class NursingNote(Base):
+    __tablename__ = "nursing_notes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    admission_id: Mapped[int] = mapped_column(ForeignKey("admissions.id"), index=True)
+    nurse_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock_now)
+
+    admission = relationship("Admission")
+
+
+class VitalSign(Base):
+    __tablename__ = "vital_signs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    admission_id: Mapped[int] = mapped_column(ForeignKey("admissions.id"), index=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, default=clock_now)
+    bp: Mapped[str] = mapped_column(String(20), default="")
+    pulse: Mapped[str] = mapped_column(String(20), default="")
+    temp: Mapped[str] = mapped_column(String(20), default="")
+    spo2: Mapped[str] = mapped_column(String(20), default="")
+    weight: Mapped[str] = mapped_column(String(20), default="")
+
+    admission = relationship("Admission")
+
+
+class WardMedOrder(Base):
+    __tablename__ = "ward_med_orders"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id"), index=True)
+    admission_id: Mapped[int | None] = mapped_column(ForeignKey("admissions.id"), nullable=True, index=True)
+    invoice_id: Mapped[int | None] = mapped_column(ForeignKey("invoices.id"), nullable=True)
+    ordered_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock_now)
+
+    patient = relationship("Patient")
+    admission = relationship("Admission")
+    items = relationship("WardMedOrderItem", back_populates="order")
+
+
+class WardMedOrderItem(Base):
+    __tablename__ = "ward_med_order_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("ward_med_orders.id"), index=True)
+    catalog_item_id: Mapped[int] = mapped_column(ForeignKey("catalog_items.id"))
+    invoice_line_id: Mapped[int | None] = mapped_column(ForeignKey("invoice_lines.id"), nullable=True)
+    qty: Mapped[float] = mapped_column(Float, default=1)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)  # pending dispensed cancelled
+
+    order = relationship("WardMedOrder", back_populates="items")
+    catalog_item = relationship("CatalogItem")

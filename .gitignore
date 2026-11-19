@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.venv-*/
+.pytest_cache/
+
+# Secrets / config
+.env
+*.env
+!.env.example
+config.env
+
+# Databases and data (patient data must never be committed)
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+local-data/
+_backup/
+_server/
+
+# Build output
+release/
+.winbuild/
+*.zip
+frontend/dist/dl/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+.claude/
