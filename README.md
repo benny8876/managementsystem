@@ -15,6 +15,18 @@ The system is **in daily production use**: the clinic alone records roughly
 
 ---
 
+## Screenshots
+
+| Login | Owner Dashboard |
+|---|---|
+| ![Login](screenshots/01-login.jpg) | ![Owner Dashboard](screenshots/03-owner-dashboard.jpg) |
+
+| Cashier Counter | Pharmacy |
+|---|---|
+| ![Cashier](screenshots/02-cashier.jpg) | ![Pharmacy](screenshots/04-pharmacy.jpg) |
+
+---
+
 ## Features
 
 **Patients & queue**
