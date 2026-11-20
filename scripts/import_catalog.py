@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Load an item list + doctor list (from scripts/tara_export.py) into a Shwe Muse
+"""Load an item list + doctor list (from scripts/tara_export.py) into a Hospital
 database — used on the cloud server and by the Windows clinic installer.
 
 Runs once per database (marker "tara_catalog_v1" in app_meta), so items staff
@@ -8,7 +8,7 @@ an item whose SKU already exists, or a doctor whose name already exists, is
 left as it is. Standard library only. Stop the app first.
 
 Usage:
-    python3 import_catalog.py <shwemuse.db> <catalog.json> [--force]
+    python3 import_catalog.py <hospital.db> <catalog.json> [--force]
 """
 import hashlib
 import json

@@ -1,8 +1,8 @@
 """Applies a downloaded app update on a site server (started by the admin's
 "⬆ Update" button — see backend/app/api/v1/site_update.py).
 
-Runs as its own one-time scheduled task ("ShweMuse Update", SYSTEM), from a
-copy outside the app folder (C:\\ShweMuse\\run_update.pyc), because it replaces
+Runs as its own one-time scheduled task ("Hospital Update", SYSTEM), from a
+copy outside the app folder (C:\\Hospital\\run_update.pyc), because it replaces
 the app folder:
 
     1. stop the server task (and keep the 5-minute watchdog from restarting it)
@@ -30,10 +30,10 @@ HOME = Path(__file__).resolve().parent
 APP = HOME / "app"
 NEW = HOME / "app.new"
 PREV = HOME / "app.prev"
-DB = HOME / "data" / "shwemuse.db"
+DB = HOME / "data" / "hospital.db"
 LOG = HOME / "logs" / "update.log"
 RESULT = HOME / "data" / "update_result.json"
-TASK = "ShweMuse Server"
+TASK = "Hospital Server"
 NO_WINDOW = 0x08000000
 
 

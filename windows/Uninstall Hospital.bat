@@ -1,5 +1,5 @@
 @echo off
-rem Removes the Shwe Muse server program (data and backups are kept).
+rem Removes the Hospital server program (data and backups are kept).
 cd /d "%~dp0"
 fltmc >nul 2>&1
 if %errorlevel% neq 0 (

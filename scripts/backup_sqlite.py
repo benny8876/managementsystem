@@ -2,7 +2,7 @@
 """Backup for the local SQLite deployment (plain `uvicorn`, not Docker/Postgres —
 see scripts/backup.sh for that one).
 
-Copies backend/shwemuse.db to a timestamped snapshot using SQLite's own
+Copies backend/hospital.db to a timestamped snapshot using SQLite's own
 backup API (sqlite3.Connection.backup), not a plain file copy — that API is
 safe to run while the app is live, since a raw `cp` can grab a half-written
 page if a write transaction is in progress at that instant. Backups older
@@ -12,7 +12,7 @@ Usage:
     python3 scripts/backup_sqlite.py
 
 Env vars (all optional):
-    DB_FILE     path to the live database (default backend/shwemuse.db)
+    DB_FILE     path to the live database (default backend/hospital.db)
     BACKUP_DIR  where to write snapshots (default backend/backups)
     KEEP_DAYS   delete snapshots older than this many days (default 14)
 """
@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DB_FILE = Path(os.environ.get("DB_FILE", ROOT / "backend" / "shwemuse.db"))
+DB_FILE = Path(os.environ.get("DB_FILE", ROOT / "backend" / "hospital.db"))
 BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", ROOT / "backend" / "backups"))
 KEEP_DAYS = int(os.environ.get("KEEP_DAYS", "14"))
 
@@ -35,7 +35,7 @@ def main() -> None:
 
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     ts = time.strftime("%Y%m%d_%H%M%S")
-    dest = BACKUP_DIR / f"shwemuse_{ts}.db"
+    dest = BACKUP_DIR / f"hospital_{ts}.db"
 
     print(f"Backing up {DB_FILE} -> {dest}")
     src = sqlite3.connect(str(DB_FILE))
@@ -47,7 +47,7 @@ def main() -> None:
 
     cutoff = time.time() - KEEP_DAYS * 86400
     kept = 0
-    for f in sorted(BACKUP_DIR.glob("shwemuse_*.db")):
+    for f in sorted(BACKUP_DIR.glob("hospital_*.db")):
         if f.stat().st_mtime < cutoff:
             f.unlink()
             print(f"Pruned old backup {f.name}")

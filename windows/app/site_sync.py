@@ -14,7 +14,7 @@ computer has internet:
                         patient details) goes to the cloud, so the QR link on a
                         token slip works from any phone
 
-Settings in C:\\ShweMuse\\config.env: SITE (hospital / clinic), CLOUD_URL, SYNC_KEY.
+Settings in C:\\Hospital\\config.env: SITE (hospital / clinic), CLOUD_URL, SYNC_KEY.
 """
 import gzip
 import hashlib
@@ -28,7 +28,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 HOME = Path(__file__).resolve().parent.parent
-DB = HOME / "data" / "shwemuse.db"
+DB = HOME / "data" / "hospital.db"
 STATE = HOME / "data" / "sync_state.json"
 LOG = HOME / "logs" / "sync.log"
 

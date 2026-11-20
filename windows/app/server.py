@@ -1,17 +1,17 @@
-"""Shwe Muse offline server for Windows (the hospital's or the clinic's LAN install).
+"""Hospital offline server for Windows (the hospital's or the clinic's LAN install).
 
 Runs the same FastAPI backend + built frontend as the cloud server, on one
 port, for every computer on the site's LAN (http://<this-pc-ip>/). The cloud
 stays the hub: see site_sync.py.
 
-Started at boot by the "ShweMuse Server" scheduled task (see setup/install.ps1)
+Started at boot by the "Hospital Server" scheduled task (see setup/install.ps1)
 with pythonw.exe, so there is no console window: everything is logged to
-C:\\ShweMuse\\logs\\server.log instead.
+C:\\Hospital\\logs\\server.log instead.
 
-Layout (C:\\ShweMuse):
+Layout (C:\\Hospital):
     python\\        embedded Python 3.12 + packages
     app\\           this file, backend\\, frontend\\dist\\, initial.db
-    data\\          shwemuse.db  (never overwritten by a reinstall)
+    data\\          hospital.db  (never overwritten by a reinstall)
     backups\\       daily snapshots (backup.py)
     logs\\          server.log
     config.env     PORT, SECRET_KEY (written once by the installer), SITE, CLOUD_URL, SYNC_KEY
@@ -25,7 +25,7 @@ APP = Path(__file__).resolve().parent
 HOME = APP.parent
 DATA = HOME / "data"
 LOGS = HOME / "logs"
-DB = DATA / "shwemuse.db"
+DB = DATA / "hospital.db"
 DIST = APP / "frontend" / "dist"
 
 DATA.mkdir(exist_ok=True)
@@ -101,7 +101,7 @@ if __name__ == "__main__":
 
     # Keep serving: if uvicorn ever stops with an error, log it and start again.
     while True:
-        print(f"Shwe Muse offline server starting on port {PORT}", flush=True)
+        print(f"Hospital offline server starting on port {PORT}", flush=True)
         try:
             uvicorn.run(app, host="0.0.0.0", port=PORT, log_config=None, access_log=False)
         except (Exception, SystemExit):  # noqa: BLE001 — uvicorn exits via SystemExit if the port is busy

@@ -8,7 +8,7 @@ bills, payments, orders, queue tokens, stock, wards, logs, numbering sequences
 (so bills start again at 000001), and resets petty cash to 0.
 
 Only the standard library, so it runs anywhere:
-    python3 reset_data.py <path-to-shwemuse.db>
+    python3 reset_data.py <path-to-hospital.db>
 Stop the app first and take a backup — this cannot be undone.
 """
 import sqlite3

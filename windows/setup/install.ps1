@@ -1,21 +1,21 @@
-# Shwe Muse — offline site server installer (Windows 10/11), for the hospital or the clinic
+# Hospital — offline site server installer (Windows 10/11), for the hospital or the clinic
 # (setup\site.env says which; the two ZIPs differ only in that file and initial.db).
-# Started by "Install Shwe Muse.bat" (already elevated). Shows one window with an
-# Install button, then: copies the app to C:\ShweMuse, starts it at every boot,
+# Started by "Install Hospital.bat" (already elevated). Shows one window with an
+# Install button, then: copies the app to C:\Hospital, starts it at every boot,
 # opens the firewall port, schedules daily backups and makes desktop shortcuts.
-# Running it again updates the app and keeps all data (C:\ShweMuse\data).
+# Running it again updates the app and keeps all data (C:\Hospital\data).
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
-$Root      = 'C:\ShweMuse'
+$Root      = 'C:\Hospital'
 $Payload   = Join-Path (Split-Path $PSScriptRoot -Parent) 'payload'
-$TaskName  = 'ShweMuse Server'
-$BackupTask = 'ShweMuse Backup'
-$SyncTask  = 'ShweMuse Cloud Sync'
-$RuleName  = 'Shwe Muse Server'
+$TaskName  = 'Hospital Server'
+$BackupTask = 'Hospital Backup'
+$SyncTask  = 'Hospital Cloud Sync'
+$RuleName  = 'Hospital Server'
 $Green     = [System.Drawing.Color]::FromArgb(20, 141, 0)
 $MmFont    = 'Myanmar Text'
 
@@ -60,7 +60,7 @@ function New-Shortcut([string]$path, [string]$target, [string]$arguments, [strin
     $lnk.Save()
 }
 
-function Stop-ShweMuse {
+function Stop-Hospital {
     Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
     Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
         Where-Object { $_.ExecutablePath -and $_.ExecutablePath -like "$Root\python\*" } |
@@ -85,13 +85,13 @@ function Read-Config {
 
 # ---------------------------------------------------------------- the window
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "Shwe Muse — $SiteName Server Setup"
+$form.Text = "Hospital — $SiteName Server Setup"
 $form.Size = New-Object System.Drawing.Size(620, 520)
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedDialog'
 $form.MaximizeBox = $false
 $form.BackColor = [System.Drawing.Color]::White
-$ico = Join-Path $PSScriptRoot 'shwemuse.ico'
+$ico = Join-Path $PSScriptRoot 'hospital.ico'
 if (Test-Path $ico) { $form.Icon = New-Object System.Drawing.Icon($ico) }
 
 $logo = New-Object System.Windows.Forms.PictureBox
@@ -103,7 +103,7 @@ if (Test-Path $logoPng) { $logo.Image = [System.Drawing.Image]::FromFile($logoPn
 $form.Controls.Add($logo)
 
 $title = New-Object System.Windows.Forms.Label
-$title.Text = "Shwe Muse $SiteName Server"
+$title.Text = "Hospital $SiteName Server"
 $title.Font = New-Object System.Drawing.Font('Segoe UI', 18, [System.Drawing.FontStyle]::Bold)
 $title.ForeColor = $Green
 $title.Location = New-Object System.Drawing.Point(125, 30)
@@ -120,7 +120,7 @@ $form.Controls.Add($sub)
 
 $info = New-Object System.Windows.Forms.Label
 $info.Text = "ဒီ computer ကို $SiteMm ရဲ့ main server အဖြစ် ထည့်ပါမယ်။`r`n`r`n" +
-             "•  C:\ShweMuse ထဲ ထည့်ပြီး computer ဖွင့်တိုင်း အလိုလို စပါမယ်`r`n" +
+             "•  C:\Hospital ထဲ ထည့်ပြီး computer ဖွင့်တိုင်း အလိုလို စပါမယ်`r`n" +
              "•  တခြား computer တွေက Chrome / Edge နဲ့ ဒီ computer ရဲ့ IP ကို ဖွင့်ရုံပါပဲ`r`n" +
              "•  နေ့တိုင်း database ကို အလိုလို backup လုပ်ပါမယ်`r`n" +
              "•  Internet ရတာနဲ့ data ကို cloud ဆီ ပို့ပြီး item / ဈေးနှုန်း ကို cloud ကနေ ယူပါမယ်`r`n" +
@@ -165,7 +165,7 @@ function Step([string]$text) {
     [System.Windows.Forms.Application]::DoEvents()
 }
 
-function Install-ShweMuse {
+function Install-Hospital {
     $button.Enabled = $false
     $progress.Visible = $true
     $progress.Value = 0
@@ -176,8 +176,8 @@ function Install-ShweMuse {
         throw "ဒီ computer က $($old['SITE']) server ပါ — $SiteName ZIP ကို ဒီမှာ မထည့်ပါနဲ့။ $($old['SITE']) ZIP ကို သုံးပါ။"
     }
 
-    Step 'ယခင် Shwe Muse ကို ရပ်နေပါတယ်...'
-    Stop-ShweMuse
+    Step 'ယခင် Hospital ကို ရပ်နေပါတယ်...'
+    Stop-Hospital
     New-Item -ItemType Directory -Force -Path $Root, "$Root\data", "$Root\backups", "$Root\logs" | Out-Null
 
     Step 'ဖိုင်တွေ ကူးနေပါတယ် (၁–၂ မိနစ်)...'
@@ -187,7 +187,7 @@ function Install-ShweMuse {
 
     # Data from before the go-live (test data, or the first installer's cloud copy):
     # set aside once (kept in backups) so the site starts fresh. See fresh_check.py.
-    $db = "$Root\data\shwemuse.db"
+    $db = "$Root\data\hospital.db"
     if (Test-Path $db) {
         $check = & "$Root\python\python.exe" "$Root\app\fresh_check.pyc" $db $Site
         if ("$check".Trim() -eq 'reset') {
@@ -197,7 +197,7 @@ function Install-ShweMuse {
         if ("$check".Trim() -eq 'old') {
             $aside = "$Root\backups\before-fresh-start_{0:yyyyMMdd_HHmmss}" -f (Get-Date)
             New-Item -ItemType Directory -Force -Path $aside | Out-Null
-            Move-Item "$Root\data\shwemuse.db*" $aside -Force
+            Move-Item "$Root\data\hospital.db*" $aside -Force
             Remove-Item "$Root\data\sync_state.json" -ErrorAction SilentlyContinue
             Write-Log "old database moved to $aside (site starts fresh)"
         }
@@ -220,10 +220,10 @@ function Install-ShweMuse {
         [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
         $secret = [Convert]::ToBase64String($bytes)
         @(
-            '# Shwe Muse offline server settings',
+            '# Hospital offline server settings',
             "PORT=$port",
             "SECRET_KEY=$secret",
-            '# Extra backup copy (USB / second drive), several separated by ;  e.g. D:\ShweMuseBackup',
+            '# Extra backup copy (USB / second drive), several separated by ;  e.g. D:\HospitalBackup',
             'BACKUP_COPY_TO='
         ) | Set-Content -Path "$Root\config.env" -Encoding ASCII
     }
@@ -265,7 +265,7 @@ function Install-ShweMuse {
     powercfg /change standby-timeout-ac 0 | Out-Null
     powercfg /change hibernate-timeout-ac 0 | Out-Null
 
-    Step 'Shwe Muse ကို စနေပါတယ်...'
+    Step 'Hospital ကို စနေပါတယ်...'
     Start-ScheduledTask -TaskName $TaskName
     $ok = $false
     for ($i = 0; $i -lt 90; $i++) {
@@ -280,13 +280,13 @@ function Install-ShweMuse {
 
     Step 'Desktop shortcut လုပ်နေပါတယ်...'
     $desktop = [Environment]::GetFolderPath('CommonDesktopDirectory')
-    $icon = "$Root\app\shwemuse.ico"
+    $icon = "$Root\app\hospital.ico"
     $local = Get-Url 'localhost' $port
     $edge = Get-EdgePath
     if ($edge) {
-        New-Shortcut "$desktop\Shwe Muse.lnk" $edge "--app=$local" $icon
+        New-Shortcut "$desktop\Hospital.lnk" $edge "--app=$local" $icon
     } else {
-        Set-Content -Path "$desktop\Shwe Muse.url" -Value "[InternetShortcut]`r`nURL=$local/" -Encoding ASCII
+        Set-Content -Path "$desktop\Hospital.url" -Value "[InternetShortcut]`r`nURL=$local/" -Encoding ASCII
     }
 
     Step 'တခြား computer တွေအတွက် shortcut ပြင်နေပါတယ်...'
@@ -295,30 +295,30 @@ function Install-ShweMuse {
     $lanUrl = Get-Url $mainIp $port
     $share = "$Root\For-Other-Computers"
     New-Item -ItemType Directory -Force -Path $share | Out-Null
-    Copy-Item $icon "$share\shwemuse.ico" -Force
-    Set-Content -Path "$share\Shwe Muse.url" -Value "[InternetShortcut]`r`nURL=$lanUrl/" -Encoding ASCII
+    Copy-Item $icon "$share\hospital.ico" -Force
+    Set-Content -Path "$share\Hospital.url" -Value "[InternetShortcut]`r`nURL=$lanUrl/" -Encoding ASCII
     @(
         '@echo off',
-        'rem Makes a "Shwe Muse" app shortcut on this computer''s desktop.',
+        'rem Makes a "Hospital" app shortcut on this computer''s desktop.',
         "set URL=$lanUrl",
-        'set ICON=%PUBLIC%\shwemuse.ico',
-        'copy /Y "%~dp0shwemuse.ico" "%ICON%" >nul 2>&1',
-        'powershell -NoProfile -ExecutionPolicy Bypass -Command "$e=@((Join-Path ${env:ProgramFiles(x86)} ''Microsoft\Edge\Application\msedge.exe''),(Join-Path $env:ProgramFiles ''Microsoft\Edge\Application\msedge.exe''))|?{Test-Path $_}|select -First 1; $s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath(''Desktop'')+''\Shwe Muse.lnk''); if($e){$s.TargetPath=$e; $s.Arguments=''--app=%URL%''}else{$s.TargetPath=''%URL%''}; $s.IconLocation=$env:ICON; $s.Save()"',
-        'echo Shwe Muse shortcut is on the desktop: %URL%',
+        'set ICON=%PUBLIC%\hospital.ico',
+        'copy /Y "%~dp0hospital.ico" "%ICON%" >nul 2>&1',
+        'powershell -NoProfile -ExecutionPolicy Bypass -Command "$e=@((Join-Path ${env:ProgramFiles(x86)} ''Microsoft\Edge\Application\msedge.exe''),(Join-Path $env:ProgramFiles ''Microsoft\Edge\Application\msedge.exe''))|?{Test-Path $_}|select -First 1; $s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath(''Desktop'')+''\Hospital.lnk''); if($e){$s.TargetPath=$e; $s.Arguments=''--app=%URL%''}else{$s.TargetPath=''%URL%''}; $s.IconLocation=$env:ICON; $s.Save()"',
+        'echo Hospital shortcut is on the desktop: %URL%',
         'pause'
-    ) | Set-Content -Path "$share\Make Shwe Muse shortcut.bat" -Encoding ASCII
+    ) | Set-Content -Path "$share\Make Hospital shortcut.bat" -Encoding ASCII
 
     Step 'ပြီးပါပြီ'
     $script:Done = $true
     $script:OpenUrl = $local
     $addr = ($ips | ForEach-Object { Get-Url $_ $port }) -join "`r`n"
     if (-not $addr) { $addr = '(LAN ကြိုး မချိတ်ရသေးပါ)' }
-    $info.Text = "✓ Install ပြီးပါပြီ — Shwe Muse အလုပ်လုပ်နေပါပြီ။`r`n`r`n" +
+    $info.Text = "✓ Install ပြီးပါပြီ — Hospital အလုပ်လုပ်နေပါပြီ။`r`n`r`n" +
                  "တခြား computer တွေကနေ ဒီလိပ်စာနဲ့ ဖွင့်ပါ:`r`n$addr`r`n`r`n" +
-                 "Shortcut: C:\ShweMuse\For-Other-Computers ကို USB နဲ့ ကူးသွားပါ"
+                 "Shortcut: C:\Hospital\For-Other-Computers ကို USB နဲ့ ကူးသွားပါ"
     $info.ForeColor = $Green
     $status.Text = 'Router မှာ ဒီ computer ကို IP ပုံသေ (DHCP reservation) ပေးထားရင် IP မပြောင်းတော့ပါ။'
-    $button.Text = 'Shwe Muse ဖွင့်မယ်'
+    $button.Text = 'Hospital ဖွင့်မယ်'
     $button.Font = New-Object System.Drawing.Font($MmFont, 13, [System.Drawing.FontStyle]::Bold)
     $button.Enabled = $true
     Write-Log "installed OK — $addr"
@@ -332,12 +332,12 @@ $button.Add_Click({
         return
     }
     try {
-        Install-ShweMuse
+        Install-Hospital
     } catch {
         Write-Log "ERROR: $_"
         $status.Text = ''
         $button.Enabled = $true
-        [System.Windows.Forms.MessageBox]::Show("Install မအောင်မြင်ပါ:`r`n`r`n$_`r`n`r`nLog: $Root\logs\install.log", 'Shwe Muse', 'OK', 'Error') | Out-Null
+        [System.Windows.Forms.MessageBox]::Show("Install မအောင်မြင်ပါ:`r`n`r`n$_`r`n`r`nLog: $Root\logs\install.log", 'Hospital', 'OK', 'Error') | Out-Null
     }
 })
 

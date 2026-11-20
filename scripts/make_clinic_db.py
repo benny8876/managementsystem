@@ -1,5 +1,5 @@
-"""Build a fresh, empty single-branch database: the cloud (Shwe Muse Hospital)
-or the Windows clinic server (Shwe Muse Clinic).
+"""Build a fresh, empty single-branch database: the cloud (Hospital)
+or the Windows clinic server (Clinic).
 
 Like make_clean_db.py — keeps only branches, warehouses, settings, the chart of
 accounts, the LAB-P01..P16 panels and the CONSULT fee item; no patients, bills,

@@ -1,8 +1,8 @@
-"""Daily backup of the clinic database (run by the "ShweMuse Backup" task).
+"""Daily backup of the clinic database (run by the "Hospital Backup" task).
 
 Uses SQLite's own backup API, which is safe while the server is running.
-Snapshots go to C:\\ShweMuse\\backups (kept 60 days). If config.env has
-BACKUP_COPY_TO=D:\\ShweMuseBackup (or a USB drive path, several separated by ;),
+Snapshots go to C:\\Hospital\\backups (kept 60 days). If config.env has
+BACKUP_COPY_TO=D:\\HospitalBackup (or a USB drive path, several separated by ;),
 each snapshot is copied there too whenever that drive is present — so the data
 survives even if this computer's disk dies.
 """
@@ -14,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 HOME = Path(__file__).resolve().parent.parent
-DB = HOME / "data" / "shwemuse.db"
+DB = HOME / "data" / "hospital.db"
 BACKUPS = HOME / "backups"
 KEEP_DAYS = 60
 
@@ -36,7 +36,7 @@ def main() -> None:
     if not DB.exists():
         print(f"{datetime.now():%Y-%m-%d %H:%M} no database yet — skipped")
         return
-    target = BACKUPS / f"shwemuse_{datetime.now():%Y%m%d_%H%M%S}.db"
+    target = BACKUPS / f"hospital_{datetime.now():%Y%m%d_%H%M%S}.db"
     src = sqlite3.connect(DB)
     dst = sqlite3.connect(target)
     with dst:
@@ -46,7 +46,7 @@ def main() -> None:
     print(f"{datetime.now():%Y-%m-%d %H:%M} backup -> {target} ({target.stat().st_size:,} bytes)")
 
     cutoff = time.time() - KEEP_DAYS * 86400
-    for old in BACKUPS.glob("shwemuse_*.db"):
+    for old in BACKUPS.glob("hospital_*.db"):
         if old.stat().st_mtime < cutoff:
             old.unlink()
 
@@ -58,7 +58,7 @@ def main() -> None:
         try:
             dest.mkdir(parents=True, exist_ok=True)
             shutil.copy2(target, dest / target.name)
-            for old in dest.glob("shwemuse_*.db"):
+            for old in dest.glob("hospital_*.db"):
                 if old.stat().st_mtime < cutoff:
                     old.unlink()
             print(f"  copied to {dest}")
@@ -75,7 +75,7 @@ def keep_server_task_enabled() -> None:
 
     if sys.platform == "win32":
         try:
-            subprocess.run(["schtasks", "/Change", "/TN", "ShweMuse Server", "/ENABLE"],
+            subprocess.run(["schtasks", "/Change", "/TN", "Hospital Server", "/ENABLE"],
                            capture_output=True, timeout=60, creationflags=0x08000000)
         except Exception:  # noqa: BLE001
             pass

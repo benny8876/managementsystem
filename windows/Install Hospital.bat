@@ -1,5 +1,5 @@
 @echo off
-rem Shwe Muse site server (hospital / clinic) - one-click installer. Double-click this file.
+rem Hospital site server (hospital / clinic) - one-click installer. Double-click this file.
 cd /d "%~dp0"
 fltmc >nul 2>&1
 if %errorlevel% neq 0 (

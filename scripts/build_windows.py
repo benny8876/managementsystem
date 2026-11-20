@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build the Windows offline site-server packages:
-    release/ShweMuse-Hospital-Setup.zip and release/ShweMuse-Clinic-Setup.zip
+    release/Hospital-Setup.zip and release/Clinic-Setup.zip
 (identical except setup/site.env and the starting database).
 
 Run with the local venv (needs Pillow for the .ico):
@@ -77,7 +77,7 @@ def build_update(version: str, site: str) -> None:
     """release/update/app-update.zip + manifest.json: the app folder of a site
     install (no Python, no starting database). The deploy puts both on the cloud;
     site servers download it and install it when an admin presses "⬆ Update"."""
-    app = ROOT / "release" / f"ShweMuse-{site.title()}-Setup" / "payload" / "app"
+    app = ROOT / "release" / f"Hospital-{site.title()}-Setup" / "payload" / "app"
     out = ROOT / "release" / "update"
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True)
@@ -112,7 +112,7 @@ def initial_db(work: Path, site: str) -> Path:
 
 
 def build(work: Path, site: str, version: str) -> None:
-    name = f"ShweMuse-{site.title()}-Setup"
+    name = f"Hospital-{site.title()}-Setup"
     initial = initial_db(work, site)
     out_root = ROOT / "release"
     out = out_root / name
@@ -120,7 +120,7 @@ def build(work: Path, site: str, version: str) -> None:
     out.mkdir(parents=True)
 
     # Top level: the two .bat buttons + README (Notepad-friendly UTF-8 BOM).
-    for bat in ("Install Shwe Muse.bat", "Uninstall Shwe Muse.bat"):
+    for bat in ("Install Hospital.bat", "Uninstall Hospital.bat"):
         crlf(WIN / bat, out / bat)
     crlf(WIN / "README.txt", out / "README.txt", bom=True)
 
@@ -135,7 +135,7 @@ def build(work: Path, site: str, version: str) -> None:
     else:
         print("WARNING: no cloud.env in --work: the clinic will not sync to the cloud")
     (out / "setup" / "site.env").write_text(f"SITE={site}\r\n", encoding="ascii")
-    ico = out / "setup" / "shwemuse.ico"
+    ico = out / "setup" / "hospital.ico"
     Image.open(dist / "pwa" / "icon-512.png").convert("RGBA").save(ico, sizes=[(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
 
     # payload/python: embeddable Python + packages.
@@ -153,7 +153,7 @@ def build(work: Path, site: str, version: str) -> None:
     shutil.copy(ROOT / "scripts" / "reset_data.py", app / "reset_data.py")
     shutil.copy(ROOT / "scripts" / "import_catalog.py", app / "import_catalog.py")
     shutil.copy(WIN / "app" / "tara_catalog.json", app / "tara_catalog.json")
-    shutil.copy(ico, app / "shwemuse.ico")
+    shutil.copy(ico, app / "hospital.ico")
     shutil.copy(initial, app / "initial.db")
     mark_fresh(app / "initial.db")
     copytree(ROOT / "backend" / "app", app / "backend" / "app")
@@ -177,7 +177,7 @@ def build(work: Path, site: str, version: str) -> None:
     for woff in (work / "fonts").glob("*.woff2"):
         shutil.copy(woff, web / "fonts" / woff.name)
 
-    # Zip it (one folder inside, so "Extract All" gives ShweMuse-Clinic-Setup\...).
+    # Zip it (one folder inside, so "Extract All" gives Clinic-Setup\...).
     zip_path = out_root / f"{name}.zip"
     zip_path.unlink(missing_ok=True)
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:

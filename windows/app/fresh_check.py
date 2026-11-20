@@ -1,5 +1,5 @@
 """Installer helper, run while the server is stopped:
-    python fresh_check.pyc <path-to-shwemuse.db> [hospital|clinic]
+    python fresh_check.pyc <path-to-hospital.db> [hospital|clinic]
 
 Prints:
   "old"   — the database is from before the hybrid go-live (no FRESH_START
@@ -7,7 +7,7 @@ Prints:
             first installer version; install.ps1 sets it aside (kept in backups)
             and the site starts from the clean database shipped with this ZIP.
   "reset" — the clinic's test data was cleared for go-live (once only; a backup
-            is saved in C:\\ShweMuse\\backups first). See reset_data.py.
+            is saved in C:\\Hospital\\backups first). See reset_data.py.
   "ok"    — nothing to do.
 """
 import sqlite3
@@ -26,7 +26,7 @@ FRESH_START = "site_fresh_start_1"
 def main(path: str, site: str = "clinic") -> str:
     try:
         con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
-        old = con.execute("SELECT COUNT(*) FROM branches WHERE name = 'Shwe Muse Hospital'").fetchone()[0]
+        old = con.execute("SELECT COUNT(*) FROM branches WHERE name = 'Hospital'").fetchone()[0]
         fresh = con.execute("SELECT 1 FROM app_meta WHERE key = ?", (FRESH_START,)).fetchone()
         con.close()
     except Exception:  # noqa: BLE001 — unreadable / no branches table: leave it alone

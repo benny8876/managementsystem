@@ -1,7 +1,7 @@
 {
-  "name": "Shwe Muse Owner",
-  "short_name": "Shwe Muse",
-  "description": "Shwe Muse Hospital — owner dashboard",
+  "name": "Hospital Owner",
+  "short_name": "Hospital",
+  "description": "Hospital — owner dashboard",
   "id": "/admin/owner",
   "start_url": "/admin/owner",
   "scope": "/",

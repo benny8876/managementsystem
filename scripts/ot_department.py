@@ -7,8 +7,8 @@ Names that only contain the letters (Cotton, Potassium, "(EyeOT)") are left alon
 Run it on the cloud (the item master): site servers follow the cloud's
 department with their next catalog pull.
 
-    python scripts/ot_department.py /path/to/shwemuse.db          # list only
-    python scripts/ot_department.py /path/to/shwemuse.db --apply  # change
+    python scripts/ot_department.py /path/to/hospital.db          # list only
+    python scripts/ot_department.py /path/to/hospital.db --apply  # change
 """
 import re
 import sqlite3
