@@ -362,7 +362,10 @@ def discharge(
     # Doctor / IPD approval is optional: Cashier may discharge directly (the
     # discharge type is then taken from the Cashier). Only leaving with money
     # still owed needs a written reason.
-    ensure_daily_room_charges(db, adm)
+    # No room days are added here: the cashier has already seen (and may have
+    # corrected) the room days on the bill and taken the money for exactly that
+    # bill — discharging must not grow it by another day. Room days are caught
+    # up whenever the bill is opened (GET invoice / open bills list).
     inv = db.query(Invoice).filter(Invoice.admission_id == admission_id).order_by(Invoice.id.desc()).first()
     if inv:
         recalc_invoice(inv, db)

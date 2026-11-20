@@ -28,7 +28,7 @@ def send_otp(db: Session, phone: str, purpose: str = "portal") -> str:
             expires_at=clock.now() + timedelta(minutes=10),
         )
     )
-    send_sms(db, phone, f"Shwe Muse OTP: {code}", kind="otp")
+    send_sms(db, phone, f"Hospital OTP: {code}", kind="otp")
     return code
 
 

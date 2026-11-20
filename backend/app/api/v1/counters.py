@@ -95,8 +95,22 @@ def register_check(branch_id: int, patient_id: int, db: Session = Depends(get_db
                 Invoice.kind == "opd", Invoice.status.in_(["draft", "open"]))
         .order_by(Invoice.id.desc()).all()
     )
+    # OPD bills left open from an earlier day that have something on them:
+    # registering again opens a new bill unless staff choose to carry one on.
+    start = datetime.combine(clock.today(), time.min)
+    old = (
+        db.query(Invoice)
+        .filter(Invoice.patient_id == patient_id, Invoice.branch_id == branch_id, Invoice.admission_id.is_(None),
+                Invoice.kind == "opd", Invoice.status.in_(["draft", "open", "partial"]), Invoice.created_at < start)
+        .order_by(Invoice.id.desc()).limit(5).all()
+    )
     return {
         "admission": adm_out,
+        "old_opd": [
+            {"id": i.id, "number": i.number, "total": float(i.total or 0), "balance": float(i.balance or 0),
+             "items": len(i.lines), "status": i.status, "created_at": i.created_at.isoformat() if i.created_at else None}
+            for i in old if i.lines
+        ],
         "open_opd": [
             {"id": i.id, "number": i.number, "total": float(i.total or 0), "items": len(i.lines),
              "created_at": i.created_at.isoformat() if i.created_at else None}
@@ -129,6 +143,7 @@ def counter_reception(data: ReceptionRegisterIn, db: Session = Depends(get_db), 
             father_name=data.father_name,
             referring_doctor=data.referring_doctor,
             home_stay=data.home_stay,
+            reuse_invoice_id=data.reuse_invoice_id,
         )
         if data.move_from_invoice_id and result["patient_type"] == "ipd":
             move_unpaid_bill(db, data.move_from_invoice_id, result["invoice"], user.id)
@@ -1505,7 +1520,13 @@ def _bill_history_rows(
             conds.append(Invoice.id.in_(paid_in_window))
         query = query.filter(or_(*conds))
     if doctor_id:
-        query = query.filter(Invoice.doctor_id == doctor_id)
+        # The bill's own doctor, or a doctor on one of its lines (second
+        # consultation, round fee, OT fee) — a patient seen by this doctor
+        # on a bill opened under another doctor still shows.
+        query = query.filter(or_(
+            Invoice.doctor_id == doctor_id,
+            Invoice.id.in_(db.query(InvoiceLine.invoice_id).filter(InvoiceLine.doctor_id == doctor_id, InvoiceLine.qty > 0)),
+        ))
     if kind and kind != "all":  # OPD / IPD / POS
         query = query.filter(Invoice.kind == kind)
     if discounted:
@@ -1520,9 +1541,24 @@ def _bill_history_rows(
             | (Patient.uhid.ilike(like))
             | (Patient.phone.ilike(like))
             | (Invoice.number.ilike(like))
+            | Invoice.id.in_(
+                db.query(InvoiceLine.invoice_id).join(User, User.id == InvoiceLine.doctor_id).filter(User.full_name.ilike(like))
+            )
         )
     rows = query.order_by(Invoice.id.desc()).limit(1000).all()
-    doctor_ids = {inv.doctor_id for inv, _ in rows if inv.doctor_id}
+    # Every doctor on the bill (its own doctor first, then the ones on its lines).
+    line_docs: dict[int, list[int]] = {}
+    inv_ids = [inv.id for inv, _ in rows]
+    if inv_ids:
+        for iid, did in (
+            db.query(InvoiceLine.invoice_id, InvoiceLine.doctor_id)
+            .filter(InvoiceLine.invoice_id.in_(inv_ids), InvoiceLine.doctor_id.isnot(None), InvoiceLine.qty > 0,
+                    InvoiceLine.source.in_(("opd", "round", "surgery")))
+            .order_by(InvoiceLine.id)
+        ):
+            ds = line_docs.setdefault(iid, [])
+            did not in ds and ds.append(did)
+    doctor_ids = {inv.doctor_id for inv, _ in rows if inv.doctor_id} | {d for ds in line_docs.values() for d in ds}
     doctor_names = (
         {u.id: u.full_name for u in db.query(User).filter(User.id.in_(doctor_ids))} if doctor_ids else {}
     )
@@ -1571,7 +1607,11 @@ def _bill_history_rows(
                 "phone": patient.phone if patient else "",
                 "status": inv.status,
                 "doctor_id": inv.doctor_id,
-                "doctor_name": doctor_names.get(inv.doctor_id, ""),
+                "doctor_name": ", ".join(
+                    doctor_names.get(d, "") for d in ([inv.doctor_id] if inv.doctor_id else [])
+                    + [d for d in line_docs.get(inv.id, []) if d != inv.doctor_id]
+                    if doctor_names.get(d)
+                ),
                 "subtotal": inv.subtotal,
                 "discount": inv.discount,
                 "refunded": inv.refunded,
@@ -1676,7 +1716,39 @@ def daily_close_data(db: Session, branch_id: int, date_from: str, date_to: str =
         d_from, d_to = d_to, d_from
     since = datetime.combine(d_from, time.min)
     until = datetime.combine(d_to + timedelta(days=1), time.min)
-    return money_window(db, branch_id, since, until, by_time=False)
+    out = money_window(db, branch_id, since, until, by_time=False)
+    # 🔒 The shift hand-overs that ended on these days: what was really given to
+    # the owner. It differs from the day's money in by the float — float that
+    # was in the drawer at the start of the day minus float left for the next.
+    from app.models.accounting import CashClose
+
+    closes = (
+        db.query(CashClose)
+        .filter(CashClose.branch_id == branch_id, CashClose.period_to >= since, CashClose.period_to < until,
+                CashClose.status != "cancelled")
+        .order_by(CashClose.period_to)
+        .all()
+    )
+    rows = []
+    for c in closes:
+        done = c.status != "counting"
+        rows.append({
+            "id": c.id, "by": c.closed_by or "", "from": c.period_from.isoformat() if c.period_from else None,
+            "to": c.period_to.isoformat() if c.period_to else None, "status": c.status,
+            "float_in": float(c.float_in or 0), "expected": float(c.expected_cash or 0),
+            "counted": float(c.counted_cash or 0) if done else None, "float_left": float(c.float_left or 0) if done else None,
+            "handed": round(float(c.counted_cash or 0) - float(c.float_left or 0), 2) if done else None,
+            "diff": round(float(c.counted_cash or 0) - float(c.expected_cash or 0), 2) if done else None,
+        })
+    out["closes"] = rows
+    done = [r for r in rows if r["handed"] is not None]
+    out["closes_pending"] = len(rows) - len(done)
+    if done:
+        out["float_start"] = done[0]["float_in"]
+        out["float_end"] = done[-1]["float_left"]
+        out["handed_total"] = round(sum(r["handed"] for r in done), 2)
+        out["closes_diff"] = round(sum(r["diff"] for r in done), 2)
+    return out
 
 
 def money_window(db: Session, branch_id: int, since: datetime, until: datetime, by_time: bool = True) -> dict:
@@ -3023,7 +3095,7 @@ ACTIVITY_ACTIONS: dict[str, tuple[str, str, str]] = {
     "return_line": ("money", "Item ပြန်အမ်း (Return)", "Item returned"), "exchange_line": ("money", "Item လဲ (Exchange)", "Item exchanged"), "discount": ("money", "Discount ပေး", "Discount given"),
     "cashier_order": ("money", "Cashier မှ order ထည့်", "Order added at Cashier"), "cashier_add_pharmacy_line": ("money", "Cashier မှ ဆေးထည့်", "Medicine added at Cashier"), "ipd_deposit": ("money", "IPD Deposit ကောက်", "IPD deposit"),
     "reception_register": ("patient", "လူနာ Register", "Patient registered"), "patient_edit": ("patient", "✏️ လူနာ အချက်အလက် ပြင်", "Patient details edited"), "convert_ipd_to_opd": ("patient", "IPD → OPD ပြောင်း", "IPD → OPD"), "convert_opd_to_ipd": ("patient", "OPD → IPD ပြောင်း", "OPD → IPD"), "ipd_admit": ("patient", "IPD Admit", "IPD admitted"),
-    "ipd_assign_bed": ("patient", "Room/Bed ပေး", "Room/Bed assigned"), "ipd_home_stay": ("patient", "🏠 Home stay", "Home stay"), "ipd_transfer": ("patient", "Bed ပြောင်း", "Bed transfer"), "ipd_discharge": ("patient", "ဆေးရုံဆင်း", "Discharged"), "add_doctor_fee": ("money", "ဆရာဝန် ထပ်ထည့်", "Doctor added to bill"), "add_round_fee": ("money", "Round fee ထည့်", "Round fee added"), "change_paid_date": ("money", "ငွေရှင်းရက် ပြောင်း", "Paid date changed"), "change_payment_date": ("money", "Deposit ရက် ပြောင်း", "Payment date changed"), "edit_payment": ("money", "Deposit ငွေပမာဏ ပြင်", "Payment amount edited"), "reopen_bill": ("money", "Open Bill ပြန်ဖွင့်", "Bill reopened"), "cash_close": ("money", "🔒 စာရင်းပိတ်", "Cash closed (shift)"), "cash_close_start": ("money", "✂️ စာရင်းဖြတ် (ရေတွက်ဆဲ)", "Cash cut-off (counting)"), "cash_close_cancel": ("money", "❌ စာရင်းဖြတ် ပယ်", "Cash cut-off cancelled"), "cash_close_edit": ("money", "✏️ ပိတ်စာရင်း ပြင်", "Cash close edited"), "cash_close_reopen": ("money", "↩ ပိတ်စာရင်း ပြန်ဖွင့်", "Cash close reopened"), "cash_close_auto": ("money", "🕛 ည ၁၂ နာရီ auto စာရင်းဖြတ် (ရေတွက်ရန်)", "Midnight auto cut-off (to count)"), "credit_close": ("money", "📒 အကြွေးနဲ့ ပိတ်", "Closed on credit"), "close_bill": ("money", "✅ Bill ပိတ် (ကျန်ငွေ 0)", "Bill closed (nothing due)"), "invoice_delete": ("money", "🗑 Voucher ဖျက်", "Voucher deleted"), "invoice_unvoid": ("money", "↩ Void ပြန်ဖျက်", "Void undone"), "credit_cancel": ("money", "↩ အကြွေး ပယ်", "Credit cancelled"), "petty_topup": ("money", "Petty cash ဖြည့်", "Petty cash top-up"), "line_order": ("money", "Item အစဉ် ပြောင်း", "Item order changed"), "add_surgery_fee": ("money", "OT ဆရာဝန်ခ ထည့်", "OT doctor fee added"), "item_delete": ("stock", "Item ဖျက်", "Item deleted"), "item_deactivate": ("stock", "Item ပိတ်", "Item deactivated"), "item_restore": ("stock", "Item ပြန်ဖွင့်", "Item restored"), "item_unlimited": ("stock", "Unlimited / Stock ပြောင်း", "Unlimited / stock changed"), "result_format_save": ("order", "Result format မှတ်", "Result format saved"), "result_format_delete": ("order", "Result format ဖျက်", "Result format deleted"), "ipd_discharge_approve": ("patient", "ဆင်းခွင့်ပြု (ဆရာဝန်)", "Discharge approved"), "ipd_discharge_unapprove": ("patient", "ဆင်းခွင့် ပြန်ရုပ်", "Discharge approval cancelled"),
+    "ipd_assign_bed": ("patient", "Room/Bed ပေး", "Room/Bed assigned"), "ipd_home_stay": ("patient", "🏠 Home stay", "Home stay"), "ipd_transfer": ("patient", "Bed ပြောင်း", "Bed transfer"), "ipd_discharge": ("patient", "ဆေးရုံဆင်း", "Discharged"), "add_doctor_fee": ("money", "ဆရာဝန် ထပ်ထည့်", "Doctor added to bill"), "add_round_fee": ("money", "Round fee ထည့်", "Round fee added"), "change_paid_date": ("money", "ငွေရှင်းရက် ပြောင်း", "Paid date changed"), "change_payment_date": ("money", "Deposit ရက် ပြောင်း", "Payment date changed"), "edit_payment": ("money", "Deposit ငွေပမာဏ ပြင်", "Payment amount edited"), "reopen_bill": ("money", "Open Bill ပြန်ဖွင့်", "Bill reopened"), "cash_close": ("money", "🔒 စာရင်းပိတ်", "Cash closed (shift)"), "cash_close_start": ("money", "✂️ စာရင်းဖြတ် (ရေတွက်ဆဲ)", "Cash cut-off (counting)"), "cash_close_cancel": ("money", "❌ စာရင်းဖြတ် ပယ်", "Cash cut-off cancelled"), "cash_close_edit": ("money", "✏️ ပိတ်စာရင်း ပြင်", "Cash close edited"), "cash_close_reopen": ("money", "↩ ပိတ်စာရင်း ပြန်ဖွင့်", "Cash close reopened"), "site_update": ("admin", "⬆ App update စ", "App update started"), "cash_close_auto": ("money", "🕛 ည ၁၂ နာရီ auto စာရင်းဖြတ် (ရေတွက်ရန်)", "Midnight auto cut-off (to count)"), "credit_close": ("money", "📒 အကြွေးနဲ့ ပိတ်", "Closed on credit"), "close_bill": ("money", "✅ Bill ပိတ် (ကျန်ငွေ 0)", "Bill closed (nothing due)"), "invoice_delete": ("money", "🗑 Voucher ဖျက်", "Voucher deleted"), "invoice_unvoid": ("money", "↩ Void ပြန်ဖျက်", "Void undone"), "credit_cancel": ("money", "↩ အကြွေး ပယ်", "Credit cancelled"), "petty_topup": ("money", "Petty cash ဖြည့်", "Petty cash top-up"), "line_order": ("money", "Item အစဉ် ပြောင်း", "Item order changed"), "add_surgery_fee": ("money", "OT ဆရာဝန်ခ ထည့်", "OT doctor fee added"), "item_delete": ("stock", "Item ဖျက်", "Item deleted"), "item_deactivate": ("stock", "Item ပိတ်", "Item deactivated"), "item_restore": ("stock", "Item ပြန်ဖွင့်", "Item restored"), "item_unlimited": ("stock", "Unlimited / Stock ပြောင်း", "Unlimited / stock changed"), "result_format_save": ("order", "Result format မှတ်", "Result format saved"), "result_format_delete": ("order", "Result format ဖျက်", "Result format deleted"), "ipd_discharge_approve": ("patient", "ဆင်းခွင့်ပြု (ဆရာဝန်)", "Discharge approved"), "ipd_discharge_unapprove": ("patient", "ဆင်းခွင့် ပြန်ရုပ်", "Discharge approval cancelled"),
     "doctor_examine": ("patient", "ဆရာဝန် စမ်းသပ်", "Doctor examination"), "vitals_record": ("patient", "Vitals မှတ်", "Vitals recorded"),
     "lab_order": ("order", "Lab order", "Lab order"), "lab_walk_in": ("order", "Lab walk-in", "Lab walk-in"), "lab_result": ("order", "Lab result ထည့်", "Lab result entered"),
     "xray_order": ("order", "X-Ray order", "X-Ray order"), "usg_order": ("order", "USG order", "USG order"), "radiology_result": ("order", "X-Ray/USG result ထည့်", "X-Ray/USG result entered"),

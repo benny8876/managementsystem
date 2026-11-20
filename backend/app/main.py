@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Luxx Digital Solution. All Rights Reserved.
+# Unauthorized use, copying, or distribution is strictly prohibited.
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI

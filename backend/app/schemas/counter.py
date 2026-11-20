@@ -22,6 +22,8 @@ class ReceptionRegisterIn(BaseModel):
     home_stay: bool = False
     # IPD register: move this unpaid OPD bill's items into the new IPD bill.
     move_from_invoice_id: int | None = None
+    # OPD: carry on an older still-open bill instead of opening a new one
+    reuse_invoice_id: int | None = None
 
 
 class ConvertTypeIn(BaseModel):

@@ -66,5 +66,21 @@ def main() -> None:
             print(f"  copy to {dest} failed: {e}")
 
 
+def keep_server_task_enabled() -> None:
+    """Safety net: an app update switches the server task off for a few seconds
+    while it swaps folders. If the power went off right then, the task would stay
+    off — the twice-a-day backup switches it back on."""
+    import subprocess
+    import sys
+
+    if sys.platform == "win32":
+        try:
+            subprocess.run(["schtasks", "/Change", "/TN", "ShweMuse Server", "/ENABLE"],
+                           capture_output=True, timeout=60, creationflags=0x08000000)
+        except Exception:  # noqa: BLE001
+            pass
+
+
 if __name__ == "__main__":
+    keep_server_task_enabled()
     main()

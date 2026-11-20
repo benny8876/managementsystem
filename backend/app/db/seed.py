@@ -40,7 +40,7 @@ def seed(db: Session):
     if db.query(Branch).first():
         return
 
-    main = Branch(code="MAIN", name="Shwe Muse Hospital", name_mm="ရွှေမူဆယ် ဆေးရုံ", is_main=True, phone="09-123456789")
+    main = Branch(code="MAIN", name="Hospital", name_mm="ဆေးရုံ", is_main=True, phone="09-123456789")
     db.add(main)
     db.flush()
     wh = Warehouse(branch_id=main.id, name="Main Pharmacy Store", is_default=True)
@@ -50,7 +50,7 @@ def seed(db: Session):
     # Exactly two branches, always — the owner wants no "Add Branch" UI at all
     # (see OwnerPanelPage.tsx), so the second branch is seeded here rather than
     # created ad hoc.
-    clinic = Branch(code="BR2", name="Shwe Muse Clinic", name_mm="ရွှေမူဆယ် ဆေးခန်း", is_main=False, phone="")
+    clinic = Branch(code="BR2", name="Clinic", name_mm="ဆေးခန်း", is_main=False, phone="")
     db.add(clinic)
     db.flush()
     db.add(Warehouse(branch_id=clinic.id, name="Clinic Pharmacy Store", is_default=True))

@@ -2,12 +2,12 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    app_name: str = "Shwe Muse HMS"
-    secret_key: str = "dev-secret-change-me-shwe-muse"
+    app_name: str = "Hospital Management System"
+    secret_key: str = "dev-secret-change-me"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 480
     refresh_token_expire_days: int = 7
-    database_url: str = "sqlite:///./shwemuse.db"
+    database_url: str = "sqlite:///./hospital.db"
     seed_on_start: bool = True
     cors_origins: str = "http://localhost:5173,http://localhost:8080,http://127.0.0.1:5173"
     session_timeout_minutes: int = 30
@@ -19,13 +19,13 @@ class Settings(BaseSettings):
     # X-Sync-Key header when pushing its daily rollup to the cloud Admin Panel
     # instance — there's no logged-in user for an unattended cron push, so this
     # is a separate, simpler auth path from the JWT login flow everything else uses.
-    sync_shared_key: str = "dev-sync-key-change-me-shwe-muse"
+    sync_shared_key: str = "dev-sync-key-change-me"
     # Clinic offline server -> cloud: the clinic uploads a copy of its database
     # (POST /sync/mirror-upload) into mirror_dir. A second, read-only instance of
     # this app (mirror_mode=true, its own SECRET_KEY) serves that copy so the
     # owner can look at clinic data from the cloud.
     mirror_mode: bool = False
-    mirror_dir: str = "/var/lib/shwemuse/clinic-mirror"
+    mirror_dir: str = "/var/lib/hospital/clinic-mirror"
     # The hospital owner opens the clinic copy from the Owner Panel without a
     # second login: the main instance asks the mirror (over localhost, with this
     # shared key) for a session for the clinic's owner account.

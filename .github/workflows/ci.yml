@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend — lint & type check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check imports resolve (dry-run start)
+        env:
+          DATABASE_URL: "sqlite:///./ci-test.db"
+          SECRET_KEY: "ci-secret-key-not-for-production"
+          SEED_ON_START: "false"
+        run: python -c "from app.main import app; print('Backend imports OK')"
+

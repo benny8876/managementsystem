@@ -11,7 +11,7 @@ $answer = [System.Windows.Forms.MessageBox]::Show(
     'Shwe Muse', 'YesNo', 'Question')
 if ($answer -ne 'Yes') { exit }
 
-foreach ($t in 'ShweMuse Server', 'ShweMuse Backup', 'ShweMuse Cloud Sync') {
+foreach ($t in 'ShweMuse Server', 'ShweMuse Backup', 'ShweMuse Cloud Sync', 'ShweMuse Update') {
     Stop-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue
     Unregister-ScheduledTask -TaskName $t -Confirm:$false -ErrorAction SilentlyContinue
 }
@@ -23,6 +23,6 @@ Remove-NetFirewallRule -DisplayName 'Shwe Muse Server' -ErrorAction SilentlyCont
 
 $desktop = [Environment]::GetFolderPath('CommonDesktopDirectory')
 Remove-Item "$desktop\Shwe Muse.lnk", "$desktop\Shwe Muse TV.lnk", "$desktop\Shwe Muse.url" -ErrorAction SilentlyContinue
-Remove-Item "$Root\python", "$Root\app", "$Root\For-Other-Computers" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item "$Root\python", "$Root\app", "$Root\app.prev", "$Root\app.new", "$Root\app.failed", "$Root\updates", "$Root\run_update.pyc", "$Root\For-Other-Computers" -Recurse -Force -ErrorAction SilentlyContinue
 
 [System.Windows.Forms.MessageBox]::Show("Shwe Muse ကို ဖြုတ်ပြီးပါပြီ။`r`nData: $Root\data", 'Shwe Muse', 'OK', 'Information') | Out-Null

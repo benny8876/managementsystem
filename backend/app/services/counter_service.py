@@ -119,6 +119,7 @@ def reception_register(
     father_name: str = "",
     referring_doctor: str = "",
     home_stay: bool = False,
+    reuse_invoice_id: int | None = None,
 ) -> dict:
     # Doctor is optional at registration — a patient can be registered (and
     # billed at Lab/X-ray/Pharmacy) before or without seeing a doctor.
@@ -172,7 +173,7 @@ def reception_register(
             home_stay=home_stay,
         )
 
-    return _register_opd(db, branch_id=branch_id, patient=patient, doctor=doctor, user_id=user_id)
+    return _register_opd(db, branch_id=branch_id, patient=patient, doctor=doctor, user_id=user_id, reuse_invoice_id=reuse_invoice_id)
 
 
 def add_doctor_fee(db: Session, inv: Invoice, doctor: User, *, skip_if_present: bool = False) -> InvoiceLine | None:
@@ -202,7 +203,9 @@ def add_doctor_fee(db: Session, inv: Invoice, doctor: User, *, skip_if_present: 
     return line
 
 
-def _register_opd(db: Session, *, branch_id: int, patient: Patient, doctor: User | None, user_id: int) -> dict:
+def _register_opd(
+    db: Session, *, branch_id: int, patient: Patient, doctor: User | None, user_id: int, reuse_invoice_id: int | None = None,
+) -> dict:
     admitted = (
         db.query(Admission)
         .filter(Admission.patient_id == patient.id, Admission.branch_id == branch_id,
@@ -214,7 +217,19 @@ def _register_opd(db: Session, *, branch_id: int, patient: Patient, doctor: User
         raise ValueError(f"{patient.uhid} {patient.name} ဆေးရုံတက်နေဆဲ — OPD bill အသစ် မဖွင့်ပါ။ IPD bill ထဲမှာ ထည့်ပါ")
     doctor_id = doctor.id if doctor else None
     token = issue_token(db, branch_id=branch_id, patient_id=patient.id, doctor_id=doctor_id)
-    inv = get_open_invoice(db, patient.id, branch_id, kind="opd")
+    # Same visit = same bill: only a bill opened *today* is carried on. A bill
+    # left open from an earlier day stays as it is (Cashier collects it) and
+    # this visit gets its own bill — unless staff chose to carry on that bill.
+    inv = None
+    if reuse_invoice_id:
+        inv = db.get(Invoice, reuse_invoice_id)
+        if (not inv or inv.patient_id != patient.id or inv.branch_id != branch_id or inv.kind != "opd"
+                or inv.admission_id or inv.status not in ("draft", "open", "partial")):
+            raise ValueError("ဒီ bill ကို ဆက်သုံးလို့ မရတော့ပါ — bill အသစ်နဲ့ register လုပ်ပါ")
+    else:
+        inv = get_open_invoice(db, patient.id, branch_id, kind="opd")
+        if inv and (inv.admission_id or not inv.created_at or inv.created_at.date() < clock.today()):
+            inv = None
     if not inv:
         inv = create_invoice(db, branch_id, patient.id, kind="opd", doctor_id=doctor_id)
     elif doctor:

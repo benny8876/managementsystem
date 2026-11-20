@@ -19,11 +19,14 @@ Run with the local venv (needs Pillow for the .ico):
     cloud.env                        CLOUD_URL=... and SYNC_KEY=... (matches the cloud's SYNC_SHARED_KEY)
 """
 import argparse
+import hashlib
+import json
 import py_compile
 import re
 import shutil
 import sqlite3
 import zipfile
+from datetime import datetime
 from pathlib import Path
 
 from PIL import Image
@@ -57,8 +60,38 @@ def main() -> None:
     ap.add_argument("--work", required=True, type=Path)
     ap.add_argument("--site", choices=SITES, action="append", help="build only this site (default: both)")
     args = ap.parse_args()
+    version = app_version()
     for site in args.site or SITES:
-        build(args.work, site)
+        build(args.work, site, version)
+    build_update(version, (args.site or SITES)[-1])
+
+
+def app_version() -> str:
+    """e.g. act259-20261120-1745 — the frontend bundle + build time."""
+    index = (ROOT / "frontend" / "dist" / "index.html").read_text(encoding="utf-8")
+    act = re.search(r'/assets/index-(act\d+)', index)
+    return f"{act.group(1) if act else 'app'}-{datetime.now():%Y%m%d-%H%M}"
+
+
+def build_update(version: str, site: str) -> None:
+    """release/update/app-update.zip + manifest.json: the app folder of a site
+    install (no Python, no starting database). The deploy puts both on the cloud;
+    site servers download it and install it when an admin presses "⬆ Update"."""
+    app = ROOT / "release" / f"ShweMuse-{site.title()}-Setup" / "payload" / "app"
+    out = ROOT / "release" / "update"
+    shutil.rmtree(out, ignore_errors=True)
+    out.mkdir(parents=True)
+    pkg = out / "app-update.zip"
+    with zipfile.ZipFile(pkg, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+        for f in sorted(app.rglob("*")):
+            if f.is_file() and f.name != "initial.db":
+                z.write(f, f.relative_to(app))
+    sha = hashlib.sha256(pkg.read_bytes()).hexdigest()
+    (out / "manifest.json").write_text(json.dumps({
+        "version": version, "sha256": sha, "size": pkg.stat().st_size,
+        "built_at": datetime.now().isoformat(timespec="seconds"),
+    }, indent=1), encoding="utf-8")
+    print(f"built {pkg} ({pkg.stat().st_size / 1e6:.1f} MB), version {version}")
 
 
 def mark_fresh(db_path: Path) -> None:
@@ -78,7 +111,7 @@ def initial_db(work: Path, site: str) -> Path:
     raise SystemExit(f"missing {work}/initial-{site}.db")
 
 
-def build(work: Path, site: str) -> None:
+def build(work: Path, site: str, version: str) -> None:
     name = f"ShweMuse-{site.title()}-Setup"
     initial = initial_db(work, site)
     out_root = ROOT / "release"
@@ -115,7 +148,7 @@ def build(work: Path, site: str) -> None:
     # payload/app: server, backend, built frontend, starting database.
     app = out / "payload" / "app"
     app.mkdir(parents=True)
-    for f in ("server.py", "backup.py", "site_sync.py", "fresh_check.py"):
+    for f in ("server.py", "backup.py", "site_sync.py", "fresh_check.py", "updater.py"):
         shutil.copy(WIN / "app" / f, app / f)
     shutil.copy(ROOT / "scripts" / "reset_data.py", app / "reset_data.py")
     shutil.copy(ROOT / "scripts" / "import_catalog.py", app / "import_catalog.py")
@@ -125,6 +158,7 @@ def build(work: Path, site: str) -> None:
     mark_fresh(app / "initial.db")
     copytree(ROOT / "backend" / "app", app / "backend" / "app")
     strip_source(app)
+    (app / "VERSION").write_text(version, encoding="ascii")
 
     web = app / "frontend" / "dist"
     index = (dist / "index.html").read_text(encoding="utf-8")

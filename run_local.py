@@ -1,10 +1,10 @@
-"""Run Shwe Muse locally: the FastAPI backend plus the built frontend on one port,
+"""Run Hospital Management System locally: the FastAPI backend plus the built frontend on one port,
 mirroring what Caddy does on the server (/api + /health -> backend, everything
 else -> frontend/dist with SPA fallback).
 
     backend/.venv-local/bin/python run_local.py
 
-Data lives in local-data/shwemuse.db. On the first run the database is
+Data lives in local-data/hospital.db. On the first run the database is
 created and filled with demo data (branches, staff, catalog) — see
 backend/app/db/seed.py. Demo staff password: ChangeMe@123 (change it).
 """
@@ -14,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "local-data"
-DB = DATA / "shwemuse.db"
+DB = DATA / "hospital.db"
 DIST = ROOT / "frontend" / "dist"
 PORT = int(os.environ.get("PORT", "8002"))
 

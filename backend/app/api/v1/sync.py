@@ -441,3 +441,30 @@ def site_command_done(data: CommandDoneIn, site: str = Depends(_site), _: None =
         meta["last_command"] = {**cmd, "done_at": clock.now().isoformat(timespec="seconds"), "result": data.result}
         _write_meta(site, meta)
     return {"ok": True}
+
+
+# ---------------------------------------------------------------- app updates for the site servers
+
+def _update_dir() -> Path:
+    """Where the deploy puts the site-server update (manifest.json + app-update.zip)."""
+    return Path(settings.mirror_dir).parent / "updates"
+
+
+@router.get("/update/manifest")
+def update_manifest(_: None = Depends(_verify_sync_key)):
+    """Newest site-server app version (sites download it in the background and
+    install it when an admin presses "⬆ Update")."""
+    f = _update_dir() / "manifest.json"
+    if not f.exists():
+        raise HTTPException(404, "No update published")
+    return json.loads(f.read_text(encoding="utf-8"))
+
+
+@router.get("/update/package")
+def update_package(_: None = Depends(_verify_sync_key)):
+    from fastapi.responses import FileResponse
+
+    f = _update_dir() / "app-update.zip"
+    if not f.exists():
+        raise HTTPException(404, "No update published")
+    return FileResponse(f, media_type="application/zip", filename="app-update.zip")

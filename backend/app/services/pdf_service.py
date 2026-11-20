@@ -82,7 +82,7 @@ def new_pdf_document(buf: BytesIO, *, landscape_mode: bool = False) -> SimpleDoc
         bottomMargin=16 * mm,
         leftMargin=12 * mm,
         rightMargin=12 * mm,
-        title="Shwe Muse Hospital",
+        title="Hospital",
     )
 
 
@@ -92,7 +92,7 @@ def header_elements(title: str, meta: list[tuple[str, str]], width: float = A4[0
         w = min(width, 150 * mm)
         elements = [Image(str(LETTERHEAD), width=w, height=w * LETTERHEAD_RATIO), Spacer(1, 6)]
     else:
-        elements = [Paragraph("Shwe Muse Hospital", styles["Heading2"])]
+        elements = [Paragraph("Hospital", styles["Heading2"])]
     title_style = ParagraphStyle("ReportTitle", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=14, leading=18, textColor=BRAND_COLOR)
     meta_style = ParagraphStyle("ReportMeta", parent=styles["Normal"], fontSize=8.5, leading=12, textColor=MUTED_COLOR)
     elements.append(Paragraph(title, title_style))

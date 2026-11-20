@@ -398,10 +398,35 @@ def void_line(db: Session, inv: Invoice, line: InvoiceLine) -> None:
         raise ValueError("This item is already paid for — use Return so the money is refunded")
     _adjust_line_stock(db, inv, line, 0)
     _cancel_service_orders(db, inv, line, line.qty)
+    old_doc = line.doctor_id if line.source == "opd" else None
     inv.lines.remove(line)
     db.delete(line)
     db.flush()
+    if old_doc and inv.doctor_id == old_doc:
+        _hand_bill_to_next_doctor(db, inv, old_doc)
     recalc_invoice(inv, db)
+
+
+def _hand_bill_to_next_doctor(db: Session, inv: Invoice, old_doc: int) -> None:
+    """The bill's own doctor had their consultation removed (wrong doctor
+    picked): unless they still have a fee line here, the bill — and the
+    lab / X-ray / service lines that were credited to them — move to the next
+    doctor on the bill, or to no doctor until one is added. Otherwise History
+    and the doctor reports keep showing the bill under the wrong doctor."""
+    from app.models.ancillary import LabOrder, RadiologyOrder
+
+    fee_srcs = ("opd", "round", "surgery")
+    if any(l.doctor_id == old_doc and l.source in fee_srcs and (l.qty or 0) > 0 for l in inv.lines):
+        return
+    new_doc = next((l.doctor_id for l in inv.lines if l.source == "opd" and l.doctor_id and (l.qty or 0) > 0), None)
+    inv.doctor_id = new_doc
+    for l in inv.lines:
+        if l.doctor_id == old_doc and l.source not in fee_srcs and not (l.df_amount or 0):
+            l.doctor_id = new_doc
+    for model in (LabOrder, RadiologyOrder):
+        db.query(model).filter(model.invoice_id == inv.id, model.doctor_id == old_doc).update(
+            {model.doctor_id: new_doc}, synchronize_session=False)
+    db.flush()
 
 
 def pay_invoice_multi(db: Session, inv: Invoice, payments: list, user_id: int, shift_id: int | None = None, notes: str = ""):

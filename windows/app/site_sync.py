@@ -8,6 +8,8 @@ computer has internet:
                         items) is brought into this site's item list
   commands every 15 s   anything the cloud asks this site to do (the Owner
                         Panel's "clear test history" before going live)
+  update   every 10 min a newer app version is downloaded (installed only when an
+                        admin presses "⬆ Update" in the app)
   queue    every 5 s    today's token queue (numbers, statuses, doctor names — no
                         patient details) goes to the cloud, so the QR link on a
                         token slip works from any phone
@@ -222,6 +224,85 @@ def run_commands() -> str:
     return out
 
 
+# ---------------------------------------------------------------- app updates
+
+UPDATES = HOME / "updates"
+READY = UPDATES / "ready.json"
+UPDATE_SECONDS = 600
+
+
+def _built(version: str) -> str:
+    """Build time inside a version name (act259-20261120-1727 -> 202611201727)."""
+    import re
+
+    m = re.search(r"(\d{8})-(\d{4})$", version or "")
+    return m.group(1) + m.group(2) if m else ""
+
+
+def app_version() -> str:
+    try:
+        return (HOME / "app" / "VERSION").read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def check_update() -> str:
+    """Download a newer app version from the cloud in the background. It is only
+    installed when an admin presses "⬆ Update" (backend site_update.py)."""
+    import httpx
+
+    cloud = _cloud()
+    if not cloud:
+        return "not configured"
+    url, headers = cloud
+    try:
+        r = httpx.get(f"{url}/api/v1/sync/update/manifest", headers=headers, timeout=30)
+    except httpx.HTTPError as e:
+        return f"offline ({e.__class__.__name__})"
+    if r.status_code == 404:
+        return "no update published"
+    if r.status_code != 200:
+        return f"cloud refused update check: {r.status_code}"
+    m = r.json()
+    ver, sha = str(m.get("version", "")), str(m.get("sha256", "")).lower()
+    if not ver or not sha:
+        return "update manifest incomplete"
+    current = app_version()
+    newer = not _built(current) or not _built(ver) or _built(ver) > _built(current)
+    if ver == current or not newer:
+        if READY.exists():
+            READY.unlink()
+        return f"up to date ({current})"
+    ready = _read_json(READY)
+    if ready.get("version") == ver and ready.get("sha256") == sha and Path(ready.get("file", "")).exists():
+        return f"update {ver} ready (running {current or 'unknown'})"
+    UPDATES.mkdir(exist_ok=True)
+    target = UPDATES / f"app-{ver}.zip"
+    part = target.with_name(target.name + ".part")
+    h = hashlib.sha256()
+    try:
+        with httpx.stream("GET", f"{url}/api/v1/sync/update/package", headers=headers, timeout=300) as resp:
+            if resp.status_code != 200:
+                return f"cloud refused update download: {resp.status_code}"
+            with open(part, "wb") as f:
+                for chunk in resp.iter_bytes(1 << 16):
+                    h.update(chunk)
+                    f.write(chunk)
+    except httpx.HTTPError as e:
+        part.unlink(missing_ok=True)
+        return f"update download failed ({e.__class__.__name__})"
+    if h.hexdigest() != sha:
+        part.unlink(missing_ok=True)
+        return f"update {ver} rejected: checksum mismatch"
+    os.replace(part, target)
+    for old in UPDATES.glob("app-*.zip"):
+        if old != target:
+            old.unlink(missing_ok=True)
+    _write_json(READY, {"version": ver, "sha256": sha, "file": str(target),
+                        "size": target.stat().st_size, "downloaded_at": datetime.now().isoformat(timespec="seconds")})
+    return f"update {ver} downloaded (running {current or 'unknown'})"
+
+
 # ---------------------------------------------------------------- queue (QR page)
 
 _queue_state = {"hash": "", "sent_at": 0.0}
@@ -300,6 +381,7 @@ def start() -> None:
         ("cloud-items", lambda: _loop("items", pull_items, ITEMS_SECONDS, ())),
         ("cloud-commands", lambda: _loop("commands", run_commands, ITEMS_SECONDS, ())),
         ("cloud-queue", lambda: _loop("queue", push_queue, QUEUE_SECONDS, ("queue sent",))),
+        ("cloud-update", lambda: _loop("update", check_update, UPDATE_SECONDS, ())),
     ):
         threading.Thread(target=target, name=name, daemon=True).start()
 

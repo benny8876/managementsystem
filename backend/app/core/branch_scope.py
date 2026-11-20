@@ -1,4 +1,4 @@
-"""Keeps each branch's operational data (Shwe Muse Hospital vs Shwe Muse Clinic)
+"""Keeps each branch's operational data (Hospital vs Clinic)
 separate for branch-bound staff.
 
 Owners (super_admin / hospital_admin) see every branch, exactly as before.

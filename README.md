@@ -1,4 +1,7 @@
-# Shwe Muse HMS — Hospital Management System
+# Hospital Management System
+
+> **Copyright (c) 2026 Luxx Digital Solution. All Rights Reserved.**
+> Unauthorized copying, distribution, or use of this software is strictly prohibited.
 
 A full hospital and clinic management system built for a private hospital and
 its satellite clinic in Myanmar. It runs every counter of the hospital — from
@@ -122,8 +125,8 @@ Configuration is read from environment variables / `backend/.env` — copy
 
 ```bash
 cd backend
-docker build -t shwemuse-hms .
-docker run -p 8000:8000 -e SECRET_KEY=change-me shwemuse-hms
+docker build -t hospital-hms .
+docker run -p 8000:8000 -e SECRET_KEY=change-me hospital-hms
 ```
 
 ---

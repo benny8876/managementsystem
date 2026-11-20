@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import accounting, admin, ancillary, analytics, auth, billing, counters, developer, hr, inventory, ipd, lab_templates, live, patients, queue, sync, ward_orders
+from app.api.v1 import accounting, admin, ancillary, analytics, auth, billing, counters, developer, hr, inventory, ipd, lab_templates, live, patients, queue, site_update, sync, ward_orders
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(auth.router)
@@ -21,3 +21,4 @@ api_router.include_router(sync.router)
 api_router.include_router(queue.router)
 api_router.include_router(queue.public_router)
 api_router.include_router(live.router)
+api_router.include_router(site_update.router)
