@@ -1,5 +1,7 @@
 # Hospital Management System
 
+> 🇬🇧 English &nbsp;|&nbsp; [🇲🇲 မြန်မာ](README-my.md)
+
 > **Copyright (c) 2026 Luxx Digital Solution. All Rights Reserved.**
 > Unauthorized copying, distribution, or use of this software is strictly prohibited.
 
