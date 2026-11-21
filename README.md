@@ -15,6 +15,63 @@ The system is **in daily production use**: the clinic alone records roughly
 
 ---
 
+## What makes this different
+
+### 🔌 Offline-first, cloud-hybrid — two hospitals, one system
+The hospital and clinic each run a fully independent FastAPI + SQLite server on
+their local LAN. Staff keep working normally when the internet drops — no
+spinners, no errors, no data loss. When connectivity returns the site
+automatically syncs to the cloud (every 15 s) and pulls the latest drug prices
+and catalog. No manual intervention ever needed.
+
+```
+Internet down  →  every counter still works, data saved locally
+Internet up    →  auto-sync to cloud, item master pulled down
+```
+
+The cloud server keeps a live read-only mirror of both sites, so the owner can
+watch both branches in real time from any device anywhere.
+
+### 📱 QR live-queue — works offline AND from outside
+Every OPD visit prints a receipt with a QR code. Scanning it opens a public
+page (no login) showing **"X patients ahead of you"**, updated live via
+WebSocket. The queue board also runs on the waiting-room TV display.
+
+The clever part: the QR link points to the **cloud**. If a patient steps
+outside the hospital's LAN, their phone still reaches the cloud endpoint, which
+fetches the ticket status from the site — so the queue page works from anywhere,
+even on mobile data, without exposing the internal server.
+
+```
+Inside hospital LAN  →  local server answers instantly
+Outside / on 4G      →  cloud proxies the request to the site
+Waiting-room TV      →  live board updates via WebSocket, no refresh needed
+```
+
+### 🔄 Remote OTA software update — no on-site visits
+The owner pushes a new build from the cloud. Each site's Windows service
+downloads it silently in the background, backs up the database, applies the
+update, and restarts — all without anyone touching the PC. If the new version
+fails to start, it rolls back automatically.
+
+```
+Owner releases build  →  sites download in background
+On next startup       →  DB backup → apply → restart
+                      →  if startup fails → automatic rollback
+```
+
+### 🕛 Automatic midnight book cut-off
+Every night at midnight the system closes the day's books automatically — even
+if no cashier is logged in. If the PC was off, it catches up all missed
+midnights on next start. Float from the last shift carries forward correctly.
+
+### 👁 Owner panel across both branches
+Revenue, stock, activity log and HR for both the hospital and the clinic in one
+dashboard — visible from anywhere with internet, while each branch's staff see
+only their own counter.
+
+---
+
 ## Screenshots
 
 | Login | Owner Dashboard |
