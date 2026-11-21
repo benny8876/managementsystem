@@ -102,7 +102,9 @@ only their own counter.
   previous medicines with one-click re-order
 - **Lab** — orders, structured result entry with **reusable report templates** (save a
   test's layout once, auto-fill every future order of the same test), formatted
-  **LABORATORY REPORT** printout with reference ranges
+  **LABORATORY REPORT** printout; each row carries a **reference range** (supports
+  gender-split values such as "Male: 13–17 / Female: 12–16 g/dL"); report header
+  shows patient age and gender so the reader can apply the right range at a glance
 - **X-Ray / Radiology** — order, findings entry, formatted **RADIOLOGY REPORT** printout
   with letterhead, patient info and doctor signature line
 - **USG** — same workflow as X-Ray, separate counter and report format
