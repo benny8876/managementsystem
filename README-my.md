@@ -94,7 +94,11 @@ Internet ရှိသည့် မည်သည့်နေရာကမဆို 
 **ကောင်တာများ** (Role တစ်ခုစီ မိမိကောင်တာကိုသာ မြင်သည်)
 - **Cashier** — Bill ဖွင့်ခြင်း၊ ငွေပေးချေမှု ခွဲခြမ်းခြင်း (Cash / KPay / Wave / Card)၊ Deposit၊ Discount၊ Item လဲလှယ်/ပြန်ပေးခြင်း၊ Void/Delete (Stock နှင့် Ledger ပြန်ဖြည့်)၊ Pay-later Credit Bill
 - **ဆေးခန်း** — FIFO Batch မှ ဆေးထုတ်ပေးခြင်း၊ ပြင်ပလူနာ ဆေးရောင်းခြင်း၊ ဆောင်အမိန့်၊ ပြန်အမ်းခြင်း၊ လူနာ၏ ယခင် ဆေးများ One-click ပြန်မှာနိုင်ခြင်း
-- **Lab / X-Ray / USG** — Order၊ ရလဒ်ထည့်ခြင်း (Template ပြန်သုံးနိုင်)၊ Report Print
+- **ဓာတ်ခွဲခန်း (Lab)** — Order ဖွင့်ခြင်း၊ ရလဒ်ထည့်ခြင်း၊ **Report Template ပြန်သုံးနိုင်သည်**
+  (Test တစ်ခု၏ Format ကို တစ်ကြိမ်သာ သတ်မှတ်ပါ — နောက်ပိုင်း Order တိုင်း အလိုအလျောက် ဖြည့်ပေးသည်)၊
+  Reference Range ပါသော **LABORATORY REPORT** Print ထုတ်ခြင်း
+- **X-Ray / Radiology** — Order၊ ရောဂါသတ်မှတ်ချက် ထည့်ခြင်း၊ Letterhead + လူနာအချက်အလက် + ဆရာဝန် လက်မှတ်နေရာ ပါသော **RADIOLOGY REPORT** Print ထုတ်ခြင်း
+- **USG** — X-Ray နှင့် တူညီသော Workflow၊ သီးခြား Counter နှင့် Report Format
 - **IPD** — တက်ရောက်ခြင်း၊ အိပ်ခန်းသတ်မှတ်ခြင်း၊ နေ့စဉ် ห้องcost၊ Deposit၊ ဆင်းခွင့်ပြုခြင်း
 - **OT** — ခွဲစိတ်ခ၊ OT Item နှင့် Staff
 

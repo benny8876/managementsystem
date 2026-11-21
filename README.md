@@ -100,7 +100,12 @@ only their own counter.
 - **Pharmacy** — dispense from stock with FIFO batches, walk-in sales, ward
   orders, returns, searchable dispense history grouped by bill, a patient's
   previous medicines with one-click re-order
-- **Lab / X-ray / USG** — orders, result entry with reusable templates, printed reports
+- **Lab** — orders, structured result entry with **reusable report templates** (save a
+  test's layout once, auto-fill every future order of the same test), formatted
+  **LABORATORY REPORT** printout with reference ranges
+- **X-Ray / Radiology** — order, findings entry, formatted **RADIOLOGY REPORT** printout
+  with letterhead, patient info and doctor signature line
+- **USG** — same workflow as X-Ray, separate counter and report format
 - **IPD** — admission, bed assignment, transfers, daily room charges, deposits,
   doctor rounds, discharge approval, final bill with deposit / cash split
 - **OT** — surgery fees, OT items and staff
